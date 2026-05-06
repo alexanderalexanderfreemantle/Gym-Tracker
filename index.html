@@ -1,421 +1,263 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>12 Week Gym Tracker</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f4f4f4;
-            color: #333;
-        }
-        header {
-            text-align: center;
-            margin-bottom: 20px;
-        }
-        .container {
-            max-width: 800px;
-            margin: 0 auto;
-            background: white;
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-        }
-        .week-selector {
-            margin-bottom: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 10px;
-        }
-        select, button {
-            padding: 10px;
-            font-size: 16px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-        }
-        button {
-            background: #007bff;
-            color: white;
-            cursor: pointer;
-        }
-        button:hover {
-            background: #0056b3;
-        }
-        .day-section {
-            margin-bottom: 20px;
-            border: 1px solid #ddd;
-            border-radius: 4px;
-            overflow: hidden;
-        }
-        .day-header {
-            background: #f8f9fa;
-            padding: 10px;
-            cursor: pointer;
-            font-weight: bold;
-        }
-        .day-content {
-            padding: 10px;
-            display: none;
-        }
-        .exercise {
-            margin-bottom: 15px;
-        }
-        .exercise h4 {
-            margin: 0 0 10px 0;
-        }
-        .input-group {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-bottom: 5px;
-        }
-        .input-group label {
-            min-width: 60px;
-        }
-        input[type="number"] {
-            width: 80px;
-            padding: 8px;
-            font-size: 16px;
-        }
-        .sets {
-            display: flex;
-            gap: 10px;
-        }
-        .graph-section {
-            margin: 20px 0;
-        }
-        .graph-controls {
-            margin-bottom: 10px;
-        }
-        .checkbox-group {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .checkbox-group label {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-        .save-btn {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            padding: 15px;
-            font-size: 18px;
-            background: #28a745;
-            color: white;
-            border: none;
-            border-radius: 50%;
-            cursor: pointer;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
-        .duplicate-btn {
-            margin-left: 10px;
-        }
-        .improvement {
-            font-weight: bold;
-        }
-        .improvement.up {
-            color: green;
-        }
-        .improvement.down {
-            color: red;
-        }
-        @media (max-width: 600px) {
-            .input-group {
-                flex-direction: column;
-                align-items: flex-start;
-            }
-            .sets {
-                flex-wrap: wrap;
-            }
-            input[type="number"] {
-                width: 100%;
-            }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gym Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+body {font-family: Arial; background:#f4f4f4; margin:0; padding:15px;}
+.container {max-width:900px; margin:auto; background:white; padding:15px; border-radius:8px;}
+.day-header {background:#eee; padding:10px; cursor:pointer; font-weight:bold;}
+.day-content {display:none; padding:10px;}
+.exercise {margin-bottom:15px;}
+input {padding:6px; width:60px;}
+.save-btn {position:fixed; bottom:20px; right:20px; padding:15px; background:green; color:white; border:none; border-radius:50%;}
+.suggestion {font-size:12px;}
+.up {color:green;}
+.down {color:red;}
+</style>
 </head>
+
 <body>
-    <header>
-        <h1>12 Week Gym Tracker</h1>
-    </header>
-    <div class="container">
-        <div class="week-selector">
-            <label for="week-select">Week:</label>
-            <select id="week-select"></select>
-            <button id="new-week-btn">New Week</button>
-            <button id="duplicate-btn" class="duplicate-btn">Duplicate Last Week</button>
-        </div>
-        <div id="days-container">
-            <!-- Days will be inserted here -->
-        </div>
-        <div class="graph-section">
-            <h2>Progress Graph</h2>
-            <div class="graph-controls">
-                <div class="checkbox-group" id="exercise-toggles">
-                    <!-- Checkboxes will be inserted here -->
-                </div>
-            </div>
-            <canvas id="progress-chart"></canvas>
-        </div>
-    </div>
-    <button class="save-btn" id="save-btn">Save</button>
 
-    <script>
-        // Data structure: { week: { day: { exercise: { weight: number, sets: [rep1, rep2, rep3, rep4?] } } } }
-        let data = {};
-        const STORAGE_KEY = 'gymTracker';
-        const defaultExercises = ['Incline Dumbbell Press', 'Bench Press', 'Hack Squat', 'Romanian Deadlift', 'Lat Pulldown'];
+<h2>Gym Tracker</h2>
 
-        // Workout split
-        const workouts = {
-            'Monday – Push': ['Incline Dumbbell Press', 'Shoulder Press', 'Seated Row', 'Cable Lateral Raise', 'Tricep Pushdown', 'Pec Fly'],
-            'Wednesday – Lower': ['Hack Squat', 'Romanian Deadlift', 'Hamstring Curl', 'Leg Extension', 'Calf Raises'],
-            'Thursday – Full Body': ['Bench Press', 'Face pulls', 'Lat Pulldown', 'Machine Crunches', 'Rear Delt Fly', 'Preacher Curl'],
-            'Friday – Arms': ['Cable Curl', 'Hammer Curl', 'Overhead Tricep Extension', 'Tricep Pushdown', 'Farmers Carry', 'Machine Crunches'],
-            'Sunday – Pump': ['Incline Smith Press', 'Assisted Pull-ups', 'Dumbbell Lateral Raises', 'Cuban lift', 'Close hand lat pulldown', 'Leg Press']
-        };
+<div class="container">
 
-        // All exercises for toggles
-        const allExercises = [...new Set(Object.values(workouts).flat())];
+<select id="weekSelect"></select>
+<button onclick="newWeek()">New Week</button>
+<button onclick="duplicateWeek()">Duplicate</button>
 
-        // Load data from localStorage
-        function loadData() {
-            const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                data = JSON.parse(stored);
-            }
-        }
+<div id="days"></div>
 
-        // Save data to localStorage
-        function saveData() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-        }
+<h3>Progress Graph</h3>
+<div id="toggles"></div>
+<canvas id="chart"></canvas>
 
-        // Get current week
-        function getCurrentWeek() {
-            return document.getElementById('week-select').value;
-        }
+</div>
 
-        // Render week selector
-        function renderWeekSelector() {
-            const select = document.getElementById('week-select');
-            select.innerHTML = '';
-            const weeks = Object.keys(data).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-            weeks.forEach(week => {
-                const option = document.createElement('option');
-                option.value = week;
-                option.textContent = week;
-                select.appendChild(option);
-            });
-            if (weeks.length === 0) {
-                createNewWeek();
-            } else {
-                select.value = weeks[weeks.length - 1]; // Select latest week
-            }
-        }
+<button class="save-btn" onclick="save()">💾</button>
 
-        // Create new week
-        function createNewWeek() {
-            const weekNum = Object.keys(data).length + 1;
-            const weekName = `Week ${weekNum}`;
-            data[weekName] = {};
-            Object.keys(workouts).forEach(day => {
-                data[weekName][day] = {};
-                workouts[day].forEach(exercise => {
-                    data[weekName][day][exercise] = { weight: 0, sets: [0, 0, 0] };
-                });
-            });
-            renderWeekSelector();
-            renderDays();
-        }
+<script>
+const STORAGE_KEY="gymTracker_v4";
+let data={};
+let chart;
 
-        // Duplicate last week
-        function duplicateLastWeek() {
-            const weeks = Object.keys(data).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-            if (weeks.length === 0) return;
-            const lastWeek = weeks[weeks.length - 1];
-            const newWeekNum = weeks.length + 1;
-            const newWeekName = `Week ${newWeekNum}`;
-            data[newWeekName] = JSON.parse(JSON.stringify(data[lastWeek]));
-            renderWeekSelector();
-            document.getElementById('week-select').value = newWeekName;
-            renderDays();
-        }
+// FULL SPLIT (YOUR EXACT ONE)
+const workouts={
+"Monday – Push": ['Incline Dumbbell Press','Shoulder Press','Seated Row','Cable Lateral Raise','Tricep Pushdown','Pec Fly'],
+"Wednesday – Lower": ['Hack Squat','Romanian Deadlift','Hamstring Curl','Leg Extension','Calf Raises'],
+"Thursday – Full Body": ['Bench Press','Face pulls','Lat Pulldown','Machine Crunches','Rear Delt Fly','Preacher Curl'],
+"Friday – Arms": ['Cable Curl','Hammer Curl','Overhead Tricep Extension','Tricep Pushdown','Farmers Carry','Machine Crunches'],
+"Sunday – Pump": ['Incline Smith Press','Assisted Pull-ups','Dumbbell Lateral Raises','Cuban lift','Close hand lat pulldown','Leg Press']
+};
 
-        // Render days
-        function renderDays() {
-            const container = document.getElementById('days-container');
-            container.innerHTML = '';
-            const currentWeek = getCurrentWeek();
-            if (!data[currentWeek]) return;
-            Object.keys(workouts).forEach(day => {
-                const dayDiv = document.createElement('div');
-                dayDiv.className = 'day-section';
-                dayDiv.innerHTML = `
-                    <div class="day-header">${day}</div>
-                    <div class="day-content">
-                        ${workouts[day].map(exercise => renderExercise(day, exercise)).join('')}
-                    </div>
-                `;
-                container.appendChild(dayDiv);
-                dayDiv.querySelector('.day-header').addEventListener('click', () => {
-                    const content = dayDiv.querySelector('.day-content');
-                    content.style.display = content.style.display === 'block' ? 'none' : 'block';
-                });
-            });
-        }
+// ALL exercises for graph
+const allExercises=[...new Set(Object.values(workouts).flat())];
 
-        // Render exercise
-        function renderExercise(day, exercise) {
-            const currentWeek = getCurrentWeek();
-            const exData = data[currentWeek][day][exercise];
-            const prevWeek = getPreviousWeek(currentWeek);
-            const prevVolume = prevWeek ? calculateTopVolume(data[prevWeek][day][exercise]) : 0;
-            const currentVolume = calculateTopVolume(exData);
-            const improvementClass = currentVolume > prevVolume ? 'up' : currentVolume < prevVolume ? 'down' : '';
-            const setsCount = exercise === 'Farmers Carry' || exercise === 'Leg Press' ? 4 : 3;
-            return `
-                <div class="exercise">
-                    <h4>${exercise} <span class="improvement ${improvementClass}">${improvementClass ? (improvementClass === 'up' ? '↑' : '↓') : ''}</span></h4>
-                    <div class="input-group">
-                        <label>Weight:</label>
-                        <input type="number" class="weight" value="${exData.weight}" min="0" step="0.5">
-                    </div>
-                    <div class="sets">
-                        ${Array.from({length: setsCount}, (_, i) => `
-                            <div class="input-group">
-                                <label>Set ${i+1}:</label>
-                                <input type="number" class="rep" value="${exData.sets[i] || 0}" min="0">
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-            `;
-        }
+// LOAD
+function load(){
+ const stored=localStorage.getItem(STORAGE_KEY);
+ if(stored){data=JSON.parse(stored);}
+ else{newWeek();}
+}
 
-        // Calculate top set volume
-        function calculateTopVolume(exData) {
-            const volumes = exData.sets.map(rep => exData.weight * rep);
-            return Math.max(...volumes);
-        }
+// SAVE
+function save(){
+ updateData();
+ localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+ renderChart();
+ renderDays();
+ alert("Saved");
+}
 
-        // Get previous week
-        function getPreviousWeek(currentWeek) {
-            const weeks = Object.keys(data).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-            const index = weeks.indexOf(currentWeek);
-            return index > 0 ? weeks[index - 1] : null;
-        }
+// TEMPLATE
+function template(){
+ let t={};
+ for(let d in workouts){
+   t[d]={};
+   workouts[d].forEach(ex=>{
+     t[d][ex]={weight:0,sets:[0,0,0]};
+   });
+ }
+ return t;
+}
 
-        // Render exercise toggles
-        function renderExerciseToggles() {
-            const container = document.getElementById('exercise-toggles');
-            container.innerHTML = '';
-            allExercises.forEach(exercise => {
-                const label = document.createElement('label');
-                label.innerHTML = `
-                    <input type="checkbox" value="${exercise}" ${defaultExercises.includes(exercise) ? 'checked' : ''}>
-                    ${exercise}
-                `;
-                container.appendChild(label);
-            });
-        }
+// NEW WEEK
+function newWeek(){
+ const w="Week "+(Object.keys(data).length+1);
+ data[w]=template();
+ renderWeeks();
+ selectWeek(w);
+}
 
-        // Render chart
-        function renderChart() {
-            const ctx = document.getElementById('progress-chart').getContext('2d');
-            const checkedExercises = Array.from(document.querySelectorAll('#exercise-toggles input:checked')).map(cb => cb.value);
-            const weeks = Object.keys(data).sort((a, b) => parseInt(a.split(' ')[1]) - parseInt(b.split(' ')[1]));
-            const datasets = checkedExercises.map(exercise => {
-                const volumes = weeks.map(week => {
-                    // Find the day containing this exercise
-                    for (const day in data[week]) {
-                        if (data[week][day][exercise]) {
-                            return calculateTopVolume(data[week][day][exercise]);
-                        }
-                    }
-                    return 0;
-                });
-                return {
-                    label: exercise,
-                    data: volumes,
-                    borderColor: getRandomColor(),
-                    fill: false
-                };
-            });
-            new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: weeks,
-                    datasets: datasets
-                },
-                options: {
-                    responsive: true,
-                    scales: {
-                        y: {
-                            beginAtZero: true,
-                            title: {
-                                display: true,
-                                text: 'Top Set Volume'
-                            }
-                        },
-                        x: {
-                            title: {
-                                display: true,
-                                text: 'Weeks'
-                            }
-                        }
-                    }
-                }
-            });
-        }
+// DUPLICATE
+function duplicateWeek(){
+ const weeks=Object.keys(data);
+ if(!weeks.length) return;
+ const last=weeks[weeks.length-1];
+ const w="Week "+(weeks.length+1);
+ data[w]=JSON.parse(JSON.stringify(data[last]));
+ renderWeeks();
+ selectWeek(w);
+}
 
-        // Get random color
-        function getRandomColor() {
-            const letters = '0123456789ABCDEF';
-            let color = '#';
-            for (let i = 0; i < 6; i++) {
-                color += letters[Math.floor(Math.random() * 16)];
-            }
-            return color;
-        }
+// UI
+function renderWeeks(){
+ const s=document.getElementById("weekSelect");
+ s.innerHTML="";
+ Object.keys(data).forEach(w=>{
+   let o=document.createElement("option");
+   o.value=w; o.textContent=w;
+   s.appendChild(o);
+ });
+}
 
-        // Update data from inputs
-        function updateData() {
-            const currentWeek = getCurrentWeek();
-            document.querySelectorAll('.exercise').forEach(exDiv => {
-                const day = exDiv.closest('.day-section').querySelector('.day-header').textContent;
-                const exercise = exDiv.querySelector('h4').textContent.split(' ')[0]; // Remove improvement indicator
-                const weight = parseFloat(exDiv.querySelector('.weight').value) || 0;
-                const sets = Array.from(exDiv.querySelectorAll('.rep')).map(input => parseInt(input.value) || 0);
-                data[currentWeek][day][exercise] = { weight, sets };
-            });
-        }
+function selectWeek(w){
+ document.getElementById("weekSelect").value=w;
+ renderDays();
+ renderChart();
+}
 
-        // Event listeners
-        document.getElementById('week-select').addEventListener('change', renderDays);
-        document.getElementById('new-week-btn').addEventListener('click', createNewWeek);
-        document.getElementById('duplicate-btn').addEventListener('click', duplicateLastWeek);
-        document.getElementById('save-btn').addEventListener('click', () => {
-            updateData();
-            saveData();
-            renderChart();
-            alert('Data saved!');
-        });
-        document.getElementById('exercise-toggles').addEventListener('change', renderChart);
+function getWeek(){
+ return document.getElementById("weekSelect").value;
+}
 
-        // Initialize
-        loadData();
-        renderWeekSelector();
-        renderDays();
-        renderExerciseToggles();
-        renderChart();
-    </script>
+// RENDER DAYS
+function renderDays(){
+ const week=getWeek();
+ const c=document.getElementById("days");
+ c.innerHTML="";
+
+ for(let d in workouts){
+   let div=document.createElement("div");
+
+   div.innerHTML=`
+   <div class="day-header">${d}</div>
+   <div class="day-content">
+   ${workouts[d].map(ex=>{
+     let e=data[week][d][ex];
+     let suggestion=getSuggestion(week,d,ex);
+
+     return `
+     <div class="exercise" data-day="${d}" data-ex="${ex}">
+       <b>${ex}</b><br>
+       W <input class="w" type="number" value="${e.weight}">
+       ${e.sets.map((s,i)=>`S${i+1} <input class="r" type="number" value="${s}">`).join("")}
+       <div class="suggestion">${suggestion}</div>
+     </div>`;
+   }).join("")}
+   </div>`;
+
+   div.querySelector(".day-header").onclick=()=>{
+     let c=div.querySelector(".day-content");
+     c.style.display=c.style.display==="block"?"none":"block";
+   };
+
+   c.appendChild(div);
+ }
+}
+
+// UPDATE DATA
+function updateData(){
+ const w=getWeek();
+ document.querySelectorAll(".exercise").forEach(el=>{
+   const d=el.dataset.day;
+   const ex=el.dataset.ex;
+   const weight=parseFloat(el.querySelector(".w").value)||0;
+   const sets=[...el.querySelectorAll(".r")].map(i=>parseInt(i.value)||0);
+   data[w][d][ex]={weight,sets};
+ });
+}
+
+// VOLUME
+function volume(e){
+ return Math.max(...e.sets.map(r=>r*e.weight));
+}
+
+// TOGGLES
+function renderToggles(){
+ const t=document.getElementById("toggles");
+ t.innerHTML="";
+ allExercises.forEach(ex=>{
+   let label=document.createElement("label");
+   label.innerHTML=`<input type="checkbox" value="${ex}" checked> ${ex}`;
+   t.appendChild(label);
+ });
+ t.onchange=renderChart;
+}
+
+// GRAPH
+function renderChart(){
+ const ctx=document.getElementById("chart");
+ if(chart) chart.destroy();
+
+ const checked=[...document.querySelectorAll("#toggles input:checked")].map(i=>i.value);
+ const weeks=Object.keys(data);
+
+ const datasets=checked.map(ex=>{
+   return {
+     label:ex,
+     data:weeks.map(w=>{
+       for(let d in data[w]){
+         if(data[w][d][ex]) return volume(data[w][d][ex]);
+       }
+       return 0;
+     }),
+     borderWidth:2
+   };
+ });
+
+ chart=new Chart(ctx,{
+   type:"line",
+   data:{labels:weeks,datasets},
+   options:{responsive:true}
+ });
+}
+
+// PROGRESSION SUGGESTIONS
+function getSuggestion(week,day,ex){
+ const weeks=Object.keys(data);
+ const idx=weeks.indexOf(week);
+ if(idx<=0) return "";
+
+ const prev=weeks[idx-1];
+ const curr=data[week][day][ex];
+ const prevD=data[prev][day][ex];
+
+ if(!curr||!prevD) return "";
+
+ const currVol=volume(curr);
+ const prevVol=volume(prevD);
+
+ if(currVol>prevVol){
+   return "<span class='up'>↑ progressing</span>";
+ }
+
+ let plateau=true;
+ for(let i=Math.max(0,idx-2); i<idx; i++){
+   let v=volume(data[weeks[i]][day][ex]);
+   if(v>currVol){plateau=false;}
+ }
+
+ if(plateau){
+   return "<span class='down'>Plateau → increase weight or deload</span>";
+ }
+
+ return "";
+}
+
+// INIT
+document.getElementById("weekSelect").onchange=renderDays;
+
+load();
+renderWeeks();
+renderToggles();
+selectWeek(Object.keys(data)[Object.keys(data).length-1]);
+
+</script>
+
 </body>
 </html>
