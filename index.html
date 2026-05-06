@@ -17,6 +17,20 @@ input {padding:6px; width:60px;}
 .suggestion {font-size:12px;}
 .up {color:green;}
 .down {color:red;}
+button {
+  margin-bottom: 15px;
+}
+
+#chart {
+  width: 100% !important;
+  height: 70vh !important;
+}
+
+@media (max-width: 600px) {
+  #chart {
+    height: 80vh !important;
+  }
+}
 </style>
 </head>
 
@@ -30,11 +44,19 @@ input {padding:6px; width:60px;}
 <button onclick="newWeek()">New Week</button>
 <button onclick="duplicateWeek()">Duplicate</button>
 
+<br><br>
+
+<button onclick="scrollToGraph()">📊 View Progress</button>
+
+<br><br>
+
 <div id="days"></div>
 
-<h3>Progress Graph</h3>
-<div id="toggles"></div>
-<canvas id="chart"></canvas>
+<div class="graph-section">
+  <h3>Progress Graph</h3>
+  <div id="toggles"></div>
+  <canvas id="chart"></canvas>
+</div>
 
 </div>
 
@@ -62,6 +84,12 @@ function load(){
  const stored=localStorage.getItem(STORAGE_KEY);
  if(stored){data=JSON.parse(stored);}
  else{newWeek();}
+}
+
+function scrollToGraph() {
+  document.querySelector('.graph-section').scrollIntoView({
+    behavior: 'smooth'
+  });
 }
 
 // SAVE
