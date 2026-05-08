@@ -4,19 +4,110 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gym Tracker</title>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
-body {font-family: Arial; background:#f4f4f4; margin:0; padding:15px;}
-.container {max-width:900px; margin:auto; background:white; padding:15px; border-radius:8px;}
-.day-header {background:#eee; padding:10px; cursor:pointer; font-weight:bold;}
-.day-content {display:none; padding:10px;}
-.exercise {margin-bottom:15px;}
-input {padding:6px; width:60px;}
-.save-btn {position:fixed; bottom:20px; right:20px; padding:15px; background:green; color:white; border:none; border-radius:50%;}
-.suggestion {font-size:12px;}
-.up {color:green;}
-.down {color:red;}
+
+body{
+font-family:Arial;
+background:#f4f4f4;
+margin:0;
+padding:15px;
+}
+
+.container{
+max-width:900px;
+margin:auto;
+background:white;
+padding:15px;
+border-radius:8px;
+}
+
+.day-header{
+background:#eee;
+padding:12px;
+cursor:pointer;
+font-weight:bold;
+margin-top:10px;
+border-radius:6px;
+}
+
+.day-content{
+display:none;
+padding:10px;
+}
+
+.exercise{
+margin-bottom:20px;
+padding-bottom:10px;
+border-bottom:1px solid #ddd;
+}
+
+.set-row{
+display:flex;
+gap:10px;
+margin-top:5px;
+align-items:center;
+flex-wrap:wrap;
+}
+
+input{
+padding:6px;
+width:70px;
+}
+
+button{
+padding:10px;
+margin-bottom:15px;
+}
+
+.save-btn{
+position:fixed;
+bottom:20px;
+right:20px;
+padding:15px;
+background:green;
+color:white;
+border:none;
+border-radius:50%;
+font-size:20px;
+}
+
+.graph-section{
+margin-top:40px;
+}
+
+#chart{
+width:100% !important;
+height:80vh !important;
+}
+
+.suggestion{
+font-size:12px;
+margin-top:5px;
+}
+
+.up{
+color:green;
+}
+
+.down{
+color:red;
+}
+
+@media(max-width:600px){
+
+#chart{
+height:85vh !important;
+}
+
+.set-row{
+flex-direction:row;
+}
+
+}
+
 </style>
 </head>
 
@@ -34,14 +125,15 @@ input {padding:6px; width:60px;}
 
 <button onclick="scrollToGraph()">📊 View Progress</button>
 
-<br><br>
-
 <div id="days"></div>
 
 <div class="graph-section">
-  <h3>Progress Graph</h3>
-  <div id="toggles"></div>
-  <canvas id="chart"></canvas>
+<h3>Progress Graph</h3>
+
+<div id="toggles"></div>
+
+<canvas id="chart"></canvas>
+
 </div>
 
 </div>
@@ -49,226 +141,505 @@ input {padding:6px; width:60px;}
 <button class="save-btn" onclick="save()">💾</button>
 
 <script>
-const STORAGE_KEY="gymTracker_v4";
+
+const STORAGE_KEY="gymTracker_v6";
+
 let data={};
 let chart;
 
-// FULL SPLIT (YOUR EXACT ONE)
 const workouts={
-"Monday – Push": ['Incline Dumbbell Press','Shoulder Press','Seated Row','Cable Lateral Raise','Tricep Pushdown','Pec Fly'],
-"Wednesday – Lower": ['Hack Squat','Romanian Deadlift','Hamstring Curl','Leg Extension','Calf Raises'],
-"Thursday – Full Body": ['Bench Press','Face pulls','Lat Pulldown','Machine Crunches','Rear Delt Fly','Preacher Curl'],
-"Friday – Arms": ['Cable Curl','Hammer Curl','Overhead Tricep Extension','Tricep Pushdown','Farmers Carry','Machine Crunches'],
-"Sunday – Pump": ['Incline Smith Press','Assisted Pull-ups','Dumbbell Lateral Raises','Cuban lift','Close hand lat pulldown','Leg Press']
+
+"Monday – Push": [
+'Incline Dumbbell Press',
+'Shoulder Press',
+'Seated Row',
+'Cable Lateral Raise',
+'Tricep Pushdown',
+'Pec Fly'
+],
+
+"Wednesday – Lower": [
+'Hack Squat',
+'Romanian Deadlift',
+'Hamstring Curl',
+'Leg Extension',
+'Calf Raises'
+],
+
+"Thursday – Full Body": [
+'Bench Press',
+'Face pulls',
+'Lat Pulldown',
+'Machine Crunches',
+'Rear Delt Fly',
+'Preacher Curl'
+],
+
+"Friday – Arms": [
+'Cable Curl',
+'Hammer Curl',
+'Overhead Tricep Extension',
+'Tricep Pushdown',
+'Farmers Carry',
+'Machine Crunches'
+],
+
+"Sunday – Pump": [
+'Incline Smith Press',
+'Assisted Pull-ups',
+'Dumbbell Lateral Raises',
+'Cuban lift',
+'Close hand lat pulldown',
+'Leg Press'
+]
+
 };
 
-// ALL exercises for graph
+const progressionRules = {
+
+'Incline Dumbbell Press': {min:6,max:8,jump:2},
+'Shoulder Press': {min:6,max:8,jump:2},
+'Seated Row': {min:8,max:10,jump:5},
+'Cable Lateral Raise': {min:10,max:15,jump:1},
+'Tricep Pushdown': {min:10,max:12,jump:2},
+'Pec Fly': {min:10,max:12,jump:2},
+
+'Hack Squat': {min:6,max:8,jump:5},
+'Romanian Deadlift': {min:6,max:8,jump:5},
+'Hamstring Curl': {min:8,max:12,jump:2.5},
+'Leg Extension': {min:10,max:15,jump:2.5},
+'Calf Raises': {min:12,max:15,jump:5},
+
+'Bench Press': {min:6,max:8,jump:2.5},
+'Face pulls': {min:12,max:15,jump:2},
+'Lat Pulldown': {min:8,max:10,jump:5},
+'Machine Crunches': {min:10,max:15,jump:5},
+'Rear Delt Fly': {min:12,max:15,jump:1},
+'Preacher Curl': {min:8,max:12,jump:2},
+
+'Cable Curl': {min:8,max:12,jump:2},
+'Hammer Curl': {min:8,max:12,jump:2},
+'Overhead Tricep Extension': {min:8,max:12,jump:2},
+'Farmers Carry': {min:20,max:40,jump:5},
+
+'Incline Smith Press': {min:6,max:8,jump:5},
+'Assisted Pull-ups': {min:6,max:10,jump:5},
+'Dumbbell Lateral Raises': {min:12,max:15,jump:1},
+'Cuban lift': {min:10,max:15,jump:2},
+'Close hand lat pulldown': {min:8,max:10,jump:5},
+'Leg Press': {min:10,max:15,jump:10}
+
+};
+
 const allExercises=[...new Set(Object.values(workouts).flat())];
 
-// LOAD
-function load(){
- const stored=localStorage.getItem(STORAGE_KEY);
- if(stored){data=JSON.parse(stored);}
- else{newWeek();}
+function scrollToGraph(){
+
+document.querySelector('.graph-section').scrollIntoView({
+behavior:'smooth'
+});
+
 }
 
-function scrollToGraph() {
-  document.querySelector('.graph-section').scrollIntoView({
-    behavior: 'smooth'
-  });
-}
-
-// SAVE
-function save(){
- updateData();
- localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
- renderChart();
- renderDays();
- alert("Saved");
-}
-
-// TEMPLATE
 function template(){
- let t={};
- for(let d in workouts){
-   t[d]={};
-   workouts[d].forEach(ex=>{
-     t[d][ex]={weight:0,sets:[0,0,0]};
-   });
- }
- return t;
+
+let t={};
+
+for(let d in workouts){
+
+t[d]={};
+
+workouts[d].forEach(ex=>{
+
+t[d][ex]={
+
+sets:[
+{weight:"",reps:""},
+{weight:"",reps:""},
+{weight:"",reps:""}
+]
+
+};
+
+});
+
 }
 
-// NEW WEEK
+return t;
+
+}
+
+function load(){
+
+const stored=localStorage.getItem(STORAGE_KEY);
+
+if(stored){
+
+data=JSON.parse(stored);
+
+}else{
+
+newWeek();
+
+}
+
+}
+
+function save(){
+
+updateData();
+
+localStorage.setItem(STORAGE_KEY,JSON.stringify(data));
+
+renderChart();
+
+renderDays();
+
+alert("Saved");
+
+}
+
 function newWeek(){
- const w="Week "+(Object.keys(data).length+1);
- data[w]=template();
- renderWeeks();
- selectWeek(w);
+
+const w="Week "+(Object.keys(data).length+1);
+
+data[w]=template();
+
+renderWeeks();
+
+selectWeek(w);
+
 }
 
-// DUPLICATE
 function duplicateWeek(){
- const weeks=Object.keys(data);
- if(!weeks.length) return;
- const last=weeks[weeks.length-1];
- const w="Week "+(weeks.length+1);
- data[w]=JSON.parse(JSON.stringify(data[last]));
- renderWeeks();
- selectWeek(w);
+
+const weeks=Object.keys(data);
+
+if(!weeks.length) return;
+
+const last=weeks[weeks.length-1];
+
+const w="Week "+(weeks.length+1);
+
+data[w]=JSON.parse(JSON.stringify(data[last]));
+
+renderWeeks();
+
+selectWeek(w);
+
 }
 
-// UI
 function renderWeeks(){
- const s=document.getElementById("weekSelect");
- s.innerHTML="";
- Object.keys(data).forEach(w=>{
-   let o=document.createElement("option");
-   o.value=w; o.textContent=w;
-   s.appendChild(o);
- });
+
+const s=document.getElementById("weekSelect");
+
+s.innerHTML="";
+
+Object.keys(data).forEach(w=>{
+
+let o=document.createElement("option");
+
+o.value=w;
+o.textContent=w;
+
+s.appendChild(o);
+
+});
+
 }
 
 function selectWeek(w){
- document.getElementById("weekSelect").value=w;
- renderDays();
- renderChart();
+
+document.getElementById("weekSelect").value=w;
+
+renderDays();
+
+renderChart();
+
 }
 
 function getWeek(){
- return document.getElementById("weekSelect").value;
+
+return document.getElementById("weekSelect").value;
+
 }
 
-// RENDER DAYS
 function renderDays(){
- const week=getWeek();
- const c=document.getElementById("days");
- c.innerHTML="";
 
- for(let d in workouts){
-   let div=document.createElement("div");
+const week=getWeek();
 
-   div.innerHTML=`
-   <div class="day-header">${d}</div>
-   <div class="day-content">
-   ${workouts[d].map(ex=>{
-     let e=data[week][d][ex];
-     let suggestion=getSuggestion(week,d,ex);
+const c=document.getElementById("days");
 
-     return `
-     <div class="exercise" data-day="${d}" data-ex="${ex}">
-       <b>${ex}</b><br>
-       W <input class="w" type="number" value="${e.weight}">
-       ${e.sets.map((s,i)=>`S${i+1} <input class="r" type="number" value="${s}">`).join("")}
-       <div class="suggestion">${suggestion}</div>
-     </div>`;
-   }).join("")}
-   </div>`;
+c.innerHTML="";
 
-   div.querySelector(".day-header").onclick=()=>{
-     let c=div.querySelector(".day-content");
-     c.style.display=c.style.display==="block"?"none":"block";
-   };
+for(let d in workouts){
 
-   c.appendChild(div);
- }
+let div=document.createElement("div");
+
+div.innerHTML=`
+
+<div class="day-header">${d}</div>
+
+<div class="day-content">
+
+${workouts[d].map(ex=>{
+
+let e=data[week][d][ex];
+
+let suggestion=getSuggestion(week,d,ex);
+
+return `
+
+<div class="exercise" data-day="${d}" data-ex="${ex}">
+
+<b>${ex}</b>
+
+${e.sets.map((set,i)=>`
+
+<div class="set-row">
+
+<label>S${i+1}</label>
+
+<input 
+class="set-weight" 
+type="number" 
+step="0.5"
+value="${set.weight}"
+placeholder="kg"
+>
+
+<input 
+class="set-reps" 
+type="number"
+value="${set.reps}"
+placeholder="reps"
+>
+
+</div>
+
+`).join("")}
+
+<div class="suggestion">${suggestion}</div>
+
+</div>
+
+`;
+
+}).join("")}
+
+</div>
+
+`;
+
+div.querySelector(".day-header").onclick=()=>{
+
+let c=div.querySelector(".day-content");
+
+c.style.display=c.style.display==="block" ? "none" : "block";
+
+};
+
+c.appendChild(div);
+
 }
 
-// UPDATE DATA
+setupWeightAutofill();
+
+}
+
+function setupWeightAutofill(){
+
+document.querySelectorAll(".exercise").forEach(exercise=>{
+
+const weightInputs=exercise.querySelectorAll(".set-weight");
+
+if(weightInputs.length===0) return;
+
+weightInputs[0].addEventListener("blur",()=>{
+
+const firstValue=weightInputs[0].value;
+
+for(let i=1;i<weightInputs.length;i++){
+
+if(weightInputs[i].value===""){
+
+weightInputs[i].value=firstValue;
+
+}
+
+}
+
+});
+
+});
+
+}
+
 function updateData(){
- const w=getWeek();
- document.querySelectorAll(".exercise").forEach(el=>{
-   const d=el.dataset.day;
-   const ex=el.dataset.ex;
-   const weight=parseFloat(el.querySelector(".w").value)||0;
-   const sets=[...el.querySelectorAll(".r")].map(i=>parseInt(i.value)||0);
-   data[w][d][ex]={weight,sets};
- });
+
+const w=getWeek();
+
+document.querySelectorAll(".exercise").forEach(el=>{
+
+const d=el.dataset.day;
+const ex=el.dataset.ex;
+
+const weights=[...el.querySelectorAll(".set-weight")];
+const reps=[...el.querySelectorAll(".set-reps")];
+
+const sets=weights.map((wInput,i)=>({
+
+weight:parseFloat(wInput.value)||"",
+reps:parseInt(reps[i].value)||""
+
+}));
+
+data[w][d][ex]={sets};
+
+});
+
 }
 
-// VOLUME
-function volume(e){
- return Math.max(...e.sets.map(r=>r*e.weight));
+function bestSetVolume(e){
+
+return Math.max(...e.sets.map(s=>(s.weight||0)*(s.reps||0)));
+
 }
 
-// TOGGLES
 function renderToggles(){
- const t=document.getElementById("toggles");
- t.innerHTML="";
- allExercises.forEach(ex=>{
-   let label=document.createElement("label");
-   label.innerHTML=`<input type="checkbox" value="${ex}" checked> ${ex}`;
-   t.appendChild(label);
- });
- t.onchange=renderChart;
+
+const t=document.getElementById("toggles");
+
+t.innerHTML="";
+
+allExercises.forEach(ex=>{
+
+let label=document.createElement("label");
+
+label.innerHTML=`
+<input type="checkbox" value="${ex}" checked>
+${ex}
+`;
+
+t.appendChild(label);
+
+});
+
+t.onchange=renderChart;
+
 }
 
-// GRAPH
 function renderChart(){
- const ctx=document.getElementById("chart");
- if(chart) chart.destroy();
 
- const checked=[...document.querySelectorAll("#toggles input:checked")].map(i=>i.value);
- const weeks=Object.keys(data);
+const ctx=document.getElementById("chart");
 
- const datasets=checked.map(ex=>{
-   return {
-     label:ex,
-     data:weeks.map(w=>{
-       for(let d in data[w]){
-         if(data[w][d][ex]) return volume(data[w][d][ex]);
-       }
-       return 0;
-     }),
-     borderWidth:2
-   };
- });
+if(chart) chart.destroy();
 
- chart=new Chart(ctx,{
-   type:"line",
-   data:{labels:weeks,datasets},
-   options:{responsive:true}
- });
+const checked=[...document.querySelectorAll("#toggles input:checked")]
+.map(i=>i.value);
+
+const weeks=Object.keys(data);
+
+const datasets=checked.map(ex=>({
+
+label:ex,
+
+data:weeks.map(w=>{
+
+for(let d in data[w]){
+
+if(data[w][d][ex]){
+
+return bestSetVolume(data[w][d][ex]);
+
 }
 
-// PROGRESSION SUGGESTIONS
+}
+
+return 0;
+
+}),
+
+borderWidth:2
+
+}));
+
+chart=new Chart(ctx,{
+
+type:"line",
+
+data:{
+labels:weeks,
+datasets
+},
+
+options:{
+responsive:true,
+maintainAspectRatio:false
+}
+
+});
+
+}
+
 function getSuggestion(week,day,ex){
- const weeks=Object.keys(data);
- const idx=weeks.indexOf(week);
- if(idx<=0) return "";
 
- const prev=weeks[idx-1];
- const curr=data[week][day][ex];
- const prevD=data[prev][day][ex];
+const rules=progressionRules[ex];
 
- if(!curr||!prevD) return "";
+if(!rules) return "";
 
- const currVol=volume(curr);
- const prevVol=volume(prevD);
+const curr=data[week][day][ex];
 
- if(currVol>prevVol){
-   return "<span class='up'>↑ progressing</span>";
- }
+if(!curr) return "";
 
- let plateau=true;
- for(let i=Math.max(0,idx-2); i<idx; i++){
-   let v=volume(data[weeks[i]][day][ex]);
-   if(v>currVol){plateau=false;}
- }
+const reps=curr.sets.map(s=>Number(s.reps)||0);
+const weights=curr.sets.map(s=>Number(s.weight)||0);
 
- if(plateau){
-   return "<span class='down'>Plateau → increase weight or deload</span>";
- }
+const allAtTop=reps.every(r=>r>=rules.max);
 
- return "";
+const avgWeight=
+weights.reduce((a,b)=>a+b,0)/weights.length;
+
+const suggestedWeight=
+Math.round((avgWeight+rules.jump)*100)/100;
+
+const lowPerformance=
+reps.filter(r=>r<rules.min).length>=2;
+
+if(allAtTop){
+
+return `
+<span class='up'>
+↑ Increase to ${suggestedWeight}kg next week
+</span>
+`;
+
 }
 
-// INIT
+if(lowPerformance){
+
+return `
+<span class='down'>
+Performance low → reduce fatigue or deload
+</span>
+`;
+
+}
+
+return `
+Stay at current weight and aim for ${rules.max} reps
+`;
+
+}
+
 document.getElementById("weekSelect").onchange=renderDays;
 
 load();
+
 renderWeeks();
+
 renderToggles();
+
 selectWeek(Object.keys(data)[Object.keys(data).length-1]);
 
 </script>
