@@ -200,32 +200,39 @@ const progressionRules = {
 'Incline Dumbbell Press': {min:6,max:8,jump:2},
 'Shoulder Press': {min:6,max:8,jump:2},
 'Seated Row': {min:8,max:10,jump:5},
-'Cable Lateral Raise': {min:10,max:15,jump:1},
-'Tricep Pushdown': {min:10,max:12,jump:2},
-'Pec Fly': {min:10,max:12,jump:2},
+
+'Cable Lateral Raise': {min:8,max:12,jump:2.5},
+'Tricep Pushdown': {min:10,max:12,jump:2.5},
+'Pec Fly': {min:8,max:12,jump:5},
 
 'Hack Squat': {min:6,max:8,jump:5},
 'Romanian Deadlift': {min:6,max:8,jump:5},
-'Hamstring Curl': {min:8,max:12,jump:2.5},
-'Leg Extension': {min:10,max:15,jump:2.5},
-'Calf Raises': {min:12,max:15,jump:5},
+
+'Hamstring Curl': {min:8,max:12,jump:5},
+'Leg Extension': {min:8,max:12,jump:5},
+'Calf Raises': {min:12,max:15,jump:10},
 
 'Bench Press': {min:6,max:8,jump:2.5},
-'Face pulls': {min:12,max:15,jump:2},
-'Lat Pulldown': {min:8,max:10,jump:5},
-'Machine Crunches': {min:10,max:15,jump:5},
-'Rear Delt Fly': {min:12,max:15,jump:1},
-'Preacher Curl': {min:8,max:12,jump:2},
+'Face pulls': {min:12,max:15,jump:2.5},
+'Lat Pulldown': {min:7,max:10,jump:5},
 
-'Cable Curl': {min:8,max:12,jump:2},
+'Machine Crunches': {min:10,max:12,jump:5},
+'Rear Delt Fly': {min:8,max:12,jump:2.5},
+
+'Preacher Curl': {min:6,max:8,jump:2.5},
+'Cable Curl': {min:8,max:12,jump:2.5},
 'Hammer Curl': {min:8,max:12,jump:2},
-'Overhead Tricep Extension': {min:8,max:12,jump:2},
-'Farmers Carry': {min:20,max:40,jump:5},
+
+'Overhead Tricep Extension': {min:8,max:12,jump:2.5},
+
+'Farmers Carry': {min:4,max:6,jump:4},
 
 'Incline Smith Press': {min:6,max:8,jump:5},
-'Assisted Pull-ups': {min:6,max:10,jump:5},
-'Dumbbell Lateral Raises': {min:12,max:15,jump:1},
-'Cuban lift': {min:10,max:15,jump:2},
+'Assisted Pull-ups': {min:6,max:8,jump:5},
+
+'Dumbbell Lateral Raises': {min:8,max:10,jump:4},
+'Cuban lift': {min:8,max:10,jump:5},
+
 'Close hand lat pulldown': {min:8,max:10,jump:5},
 'Leg Press': {min:10,max:15,jump:10}
 
@@ -363,7 +370,26 @@ function getWeek(){
 return document.getElementById("weekSelect").value;
 
 }
+function getPreviousWeekData(currentWeek, day, ex){
 
+const weeks = Object.keys(data);
+const idx = weeks.indexOf(currentWeek);
+
+if(idx <= 0) return null;
+
+const prevWeek = weeks[idx - 1];
+
+if(
+data[prevWeek] &&
+data[prevWeek][day] &&
+data[prevWeek][day][ex]
+){
+return data[prevWeek][day][ex];
+}
+
+return null;
+
+}
 function renderDays(){
 
 const week=getWeek();
@@ -387,7 +413,7 @@ ${workouts[d].map(ex=>{
 let e=data[week][d][ex];
 
 let suggestion=getSuggestion(week,d,ex);
-
+let previousData=getPreviousWeekData(week,d,ex);
 return `
 
 <div class="exercise" data-day="${d}" data-ex="${ex}">
@@ -414,6 +440,14 @@ type="number"
 value="${set.reps}"
 placeholder="reps"
 >
+
+${
+previousData && previousData.sets[i]
+? `<span style="font-size:12px;color:#666;">
+Last: ${previousData.sets[i].weight || "-"}kg × ${previousData.sets[i].reps || "-"}
+</span>`
+: ""
+}
 
 </div>
 
@@ -550,7 +584,9 @@ for(let d in data[w]){
 
 if(data[w][d][ex]){
 
-return bestSetVolume(data[w][d][ex]);
+const volume = bestSetVolume(data[w][d][ex]);
+
+return volume === 0 ? null : volume;
 
 }
 
@@ -560,7 +596,8 @@ return 0;
 
 }),
 
-borderWidth:2
+borderWidth:2,
+spanGaps:true
 
 }));
 
@@ -591,7 +628,11 @@ if(!rules) return "";
 const curr=data[week][day][ex];
 
 if(!curr) return "";
+const hasData = curr.sets.some(
+s => s.weight && s.reps
+);
 
+if(!hasData) return "";
 const reps=curr.sets.map(s=>Number(s.reps)||0);
 const weights=curr.sets.map(s=>Number(s.weight)||0);
 
