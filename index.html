@@ -5,12 +5,15 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gym Tracker</title>
 
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
 <style>
 
 body{
-font-family:Arial;
+font-family: 'Inter', sans-serif;
 background:#f4f4f4;
 margin:0;
 padding:15px;
@@ -107,7 +110,72 @@ flex-direction:row;
 }
 
 }
+.dashboard-section{
+margin-top:40px;
+border:2px solid #ddd;
+border-radius:12px;
+overflow:hidden;
+background:white;
+box-shadow:0 2px 8px rgba(0,0,0,0.08);
+}
 
+.dashboard-header{
+padding:16px;
+font-size:20px;
+font-weight:600;
+background:#f5f5f5;
+cursor:pointer;
+user-select:none;
+}
+
+.dashboard-content{
+display:none;
+padding:20px;
+}
+
+.exercise-table-container{
+overflow-x:auto;
+margin-bottom:25px;
+}
+
+.exercise-table{
+width:100%;
+border-collapse:collapse;
+font-size:14px;
+}
+
+.exercise-table th{
+text-align:left;
+padding:12px;
+background:#f0f0f0;
+}
+
+.exercise-table td{
+padding:10px;
+border-bottom:1px solid #eee;
+}
+
+.exercise-table input[type="checkbox"]{
+transform:scale(1.2);
+cursor:pointer;
+}
+
+.color-pill{
+width:18px;
+height:18px;
+border-radius:999px;
+display:inline-block;
+}
+
+.graph-wrapper{
+height:70vh;
+position:relative;
+}
+
+#chart{
+width:100% !important;
+height:100% !important;
+}
 </style>
 </head>
 
@@ -127,12 +195,37 @@ flex-direction:row;
 
 <div id="days"></div>
 
-<div class="graph-section">
-<h3>Progress Graph</h3>
+<div class="dashboard-section">
 
-<div id="toggles"></div>
+<div class="dashboard-header" onclick="toggleDashboard()">
+📊 Dashboard
+</div>
 
+<div class="dashboard-content" id="dashboardContent">
+
+<div class="exercise-table-container">
+
+<table class="exercise-table">
+
+<thead>
+<tr>
+<th>Track</th>
+<th>Exercise</th>
+<th>Colour</th>
+</tr>
+</thead>
+
+<tbody id="toggles"></tbody>
+
+</table>
+
+</div>
+
+<div class="graph-wrapper">
 <canvas id="chart"></canvas>
+</div>
+
+</div>
 
 </div>
 
@@ -240,12 +333,16 @@ const progressionRules = {
 
 const allExercises=[...new Set(Object.values(workouts).flat())];
 
+function toggleDashboard(){
+  const dashboard = document.getElementById("dashboardContent");
+  dashboard.style.display = dashboard.style.display === "block" ? "none" : "block";
+}
+
 function scrollToGraph(){
-
-document.querySelector('.graph-section').scrollIntoView({
-behavior:'smooth'
-});
-
+  const graph = document.querySelector('.graph-wrapper');
+  if (graph) {
+    graph.scrollIntoView({ behavior: 'smooth' });
+  }
 }
 
 function template(){
@@ -546,23 +643,57 @@ const t=document.getElementById("toggles");
 
 t.innerHTML="";
 
-allExercises.forEach(ex=>{
+allExercises.forEach((ex,index)=>{
 
-let label=document.createElement("label");
+const color=getColor(index);
 
-label.innerHTML=`
-<input type="checkbox" value="${ex}" checked>
+let row=document.createElement("tr");
+
+row.innerHTML=`
+
+<td>
+<input type="checkbox" value="${ex}">
+</td>
+
+<td>
 ${ex}
+</td>
+
+<td>
+<span class="color-pill"
+style="background:${color}">
+</span>
+</td>
+
 `;
 
-t.appendChild(label);
+t.appendChild(row);
 
 });
 
 t.onchange=renderChart;
 
 }
+function getColor(index){
 
+const colors=[
+"#ff6384",
+"#36a2eb",
+"#4bc0c0",
+"#ff9f40",
+"#9966ff",
+"#c9cbcf",
+"#00c853",
+"#ff5252",
+"#ffd600",
+"#7c4dff",
+"#00b8d4",
+"#ff6d00"
+];
+
+return colors[index % colors.length];
+
+}
 function renderChart(){
 
 const ctx=document.getElementById("chart");
@@ -574,7 +705,7 @@ const checked=[...document.querySelectorAll("#toggles input:checked")]
 
 const weeks=Object.keys(data);
 
-const datasets=checked.map(ex=>({
+const datasets=checked.map((ex,index)=>({
 
 label:ex,
 
@@ -596,8 +727,11 @@ return 0;
 
 }),
 
-borderWidth:2,
-spanGaps:true
+borderColor:getColor(index),
+backgroundColor:getColor(index),
+borderWidth:3,
+spanGaps:true,
+tension:0.3
 
 }));
 
@@ -625,18 +759,76 @@ const rules=progressionRules[ex];
 
 if(!rules) return "";
 
+const weeks=Object.keys(data);
+
+const idx=weeks.indexOf(week);
+
 const curr=data[week][day][ex];
 
 if(!curr) return "";
-const hasData = curr.sets.some(
-s => s.weight && s.reps
-);
 
-if(!hasData) return "";
+// CHECK IF CURRENT WEEK HAS ANY WEIGHT ENTERED
+const currentWeekStarted =
+curr.sets.some(s => Number(s.weight) > 0);
+
+// FIRST WEEK = NO MESSAGE
+if(idx <= 0){
+
+return "";
+
+}
+
+const prevWeek=weeks[idx-1];
+
+const prevData=data[prevWeek][day][ex];
+
+if(!prevData) return "";
+
+// PREVIOUS WEEK VALUES
+const prevReps=prevData.sets.map(s=>Number(s.reps)||0);
+const prevWeights=prevData.sets.map(s=>Number(s.weight)||0);
+
+const prevAllAtTop=
+prevReps.every(r=>r>=rules.max);
+
+const prevAvgWeight=
+prevWeights.reduce((a,b)=>a+b,0)/prevWeights.length;
+
+const prevSuggestedWeight=
+Math.round((prevAvgWeight+rules.jump)*100)/100;
+
+// ===== NEW FEATURE =====
+// SHOW "INCREASE TO X THIS WEEK"
+// ONLY if previous week earned progression
+// AND current week has not started
+if(prevAllAtTop && !currentWeekStarted){
+
+return `
+<span class='up'>
+Start this week at ${prevSuggestedWeight}kg
+</span>
+`;
+
+}
+
+// ===== NORMAL CURRENT WEEK LOGIC =====
+
 const reps=curr.sets.map(s=>Number(s.reps)||0);
 const weights=curr.sets.map(s=>Number(s.weight)||0);
 
-const allAtTop=reps.every(r=>r>=rules.max);
+// NO DATA ENTERED = NO MESSAGE
+const noData =
+weights.every(w=>w===0) &&
+reps.every(r=>r===0);
+
+if(noData){
+
+return "";
+
+}
+
+const allAtTop=
+reps.every(r=>r>=rules.max);
 
 const avgWeight=
 weights.reduce((a,b)=>a+b,0)/weights.length;
@@ -647,6 +839,7 @@ Math.round((avgWeight+rules.jump)*100)/100;
 const lowPerformance=
 reps.filter(r=>r<rules.min).length>=2;
 
+// INCREASE NEXT WEEK
 if(allAtTop){
 
 return `
@@ -657,6 +850,7 @@ return `
 
 }
 
+// LOW PERFORMANCE
 if(lowPerformance){
 
 return `
@@ -667,6 +861,7 @@ Performance low → reduce fatigue or deload
 
 }
 
+// STAY AT SAME WEIGHT
 return `
 Stay at current weight and aim for ${rules.max} reps
 `;
