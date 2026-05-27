@@ -332,7 +332,57 @@ const progressionRules = {
 };
 
 const allExercises=[...new Set(Object.values(workouts).flat())];
+const exerciseGroups = {
 
+Chest: [
+'Incline Dumbbell Press',
+'Pec Fly',
+'Bench Press',
+'Incline Smith Press'
+],
+
+Legs: [
+'Hack Squat',
+'Romanian Deadlift',
+'Hamstring Curl',
+'Leg Extension',
+'Calf Raises',
+'Leg Press'
+],
+
+Shoulders: [
+'Shoulder Press',
+'Cable Lateral Raise',
+'Rear Delt Fly',
+'Face pulls',
+'Cuban lift',
+'Dumbbell Lateral Raises'
+],
+
+Back: [
+'Seated Row',
+'Lat Pulldown',
+'Assisted Pull-ups',
+'Close hand lat pulldown'
+],
+
+Biceps: [
+'Hammer Curl',
+'Cable Curl',
+'Preacher Curl'
+],
+
+Triceps: [
+'Tricep Pushdown',
+'Overhead Tricep Extension'
+],
+
+Other: [
+'Machine Crunches',
+'Farmers Carry'
+]
+
+};
 function toggleDashboard(){
   const dashboard = document.getElementById("dashboardContent");
   dashboard.style.display = dashboard.style.display === "block" ? "none" : "block";
@@ -643,19 +693,56 @@ const t=document.getElementById("toggles");
 
 t.innerHTML="";
 
-allExercises.forEach((ex,index)=>{
+let colorIndex = 0;
 
-const color=getColor(index);
+for(const group in exerciseGroups){
+
+const groupRow=document.createElement("tr");
+
+groupRow.innerHTML=`
+
+<td colspan="3"
+style="
+font-weight:700;
+padding-top:20px;
+background:#f7f7f7;
+">
+
+<label style="display:flex;align-items:center;gap:10px;">
+
+<input
+type="checkbox"
+class="group-toggle"
+data-group="${group}"
+>
+
+${group}
+
+</label>
+
+</td>
+
+`;
+
+t.appendChild(groupRow);
+
+exerciseGroups[group].forEach(ex=>{
+
+const color=getColor(colorIndex);
 
 let row=document.createElement("tr");
 
 row.innerHTML=`
 
 <td>
-<input type="checkbox" value="${ex}">
+<input
+type="checkbox"
+value="${ex}"
+class="exercise-toggle"
+>
 </td>
 
-<td>
+<td style="padding-left:25px;">
 ${ex}
 </td>
 
@@ -669,9 +756,52 @@ style="background:${color}">
 
 t.appendChild(row);
 
+colorIndex++;
+
 });
 
-t.onchange=renderChart;
+}
+
+setupToggleLogic();
+
+}
+function setupToggleLogic(){
+
+// GROUP TOGGLE
+document.querySelectorAll(".group-toggle").forEach(groupBox=>{
+
+groupBox.addEventListener("change",()=>{
+
+const group = groupBox.dataset.group;
+
+const exercises = exerciseGroups[group];
+
+document.querySelectorAll(".exercise-toggle").forEach(exBox=>{
+
+if(exercises.includes(exBox.value)){
+
+exBox.checked = groupBox.checked;
+
+}
+
+});
+
+renderChart();
+
+});
+
+});
+
+// INDIVIDUAL EXERCISE TOGGLE
+document.querySelectorAll(".exercise-toggle").forEach(exBox=>{
+
+exBox.addEventListener("change",()=>{
+
+renderChart();
+
+});
+
+});
 
 }
 function getColor(index){
@@ -700,40 +830,88 @@ const ctx=document.getElementById("chart");
 
 if(chart) chart.destroy();
 
-const checked=[...document.querySelectorAll("#toggles input:checked")]
+const checked=[...document.querySelectorAll(".exercise-toggle:checked")]
 .map(i=>i.value);
 
 const weeks=Object.keys(data);
 
-const datasets=checked.map((ex,index)=>({
+// STORE TOOLTIP INFO
+const tooltipData = {};
 
-label:ex,
+const datasets=checked.map((ex,index)=>{
 
-data:weeks.map(w=>{
+tooltipData[ex] = [];
+
+const values = weeks.map(w=>{
 
 for(let d in data[w]){
 
 if(data[w][d][ex]){
 
-const volume = bestSetVolume(data[w][d][ex]);
+const exData = data[w][d][ex];
 
-return volume === 0 ? null : volume;
+const volume = bestSetVolume(exData);
+
+// NO DATA
+if(volume <= 0){
+
+tooltipData[ex].push(null);
+
+return null;
+
+}
+
+const bestSet = exData.sets.reduce((best,current)=>{
+
+const bestVol =
+(Number(best.weight)||0) *
+(Number(best.reps)||0);
+
+const currentVol =
+(Number(current.weight)||0) *
+(Number(current.reps)||0);
+
+return currentVol > bestVol ? current : best;
+
+});
+
+// SAVE TOOLTIP INFO
+tooltipData[ex].push({
+weight:bestSet.weight,
+reps:bestSet.reps
+});
+
+return volume;
 
 }
 
 }
 
-return 0;
+tooltipData[ex].push(null);
 
-}),
+return null;
+
+});
+
+return {
+
+label:ex,
+
+data:values,
 
 borderColor:getColor(index),
 backgroundColor:getColor(index),
+
 borderWidth:3,
 spanGaps:true,
-tension:0.3
+tension:0.3,
 
-}));
+pointRadius:5,
+pointHoverRadius:7
+
+};
+
+});
 
 chart=new Chart(ctx,{
 
@@ -745,8 +923,35 @@ datasets
 },
 
 options:{
+
 responsive:true,
-maintainAspectRatio:false
+maintainAspectRatio:false,
+
+plugins:{
+
+tooltip:{
+
+callbacks:{
+
+label:function(context){
+
+const exercise = context.dataset.label;
+
+const info =
+tooltipData[exercise][context.dataIndex];
+
+if(!info) return "";
+
+return `${exercise}: ${info.weight}kg × ${info.reps}`;
+
+}
+
+}
+
+}
+
+}
+
 }
 
 });
